@@ -1,103 +1,155 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import type React from "react"
+
+import { useState, useRef, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Send } from "lucide-react"
+
+interface Message {
+  role: "user" | "model";
+  content: string;
+}
+
+export default function CoffeeChatHome() {
+  const [aiResponse, setAiResponse] = useState(
+    "Hello! I'm your AI coffee companion. Type a message below to start our conversation.",
+  )
+  const [userInput, setUserInput] = useState("")
+  const [conversationHistory, setConversationHistory] = useState<Message[]>([])
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleSendMessage = () => {
+    if (userInput.trim() === "") return
+
+    const currentUserMessage = userInput.trim();
+    
+    const req = new Request("/api/send-prompt", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ 
+        prompt: currentUserMessage,
+        history: conversationHistory 
+      }),
+    })
+
+    fetch(req)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Network response was not ok")
+        
+        // Handle streaming response
+        const reader = res.body?.getReader()
+        if (!reader) throw new Error("No response body")
+        
+        let accumulatedText = ""
+        setAiResponse("") // Clear previous response
+        
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          
+          const chunk = new TextDecoder().decode(value)
+          accumulatedText += chunk
+          setAiResponse(accumulatedText)
+        }
+        
+        // Update conversation history when response is complete
+        setConversationHistory(prev => [
+          ...prev,
+          { role: "user", content: currentUserMessage },
+          { role: "model", content: accumulatedText }
+        ])
+      })
+      .catch((err) => {
+        console.log(err)
+        setAiResponse("Sorry, there was an error. Please try again.")
+      })
+
+    setUserInput("") // Clear the input after sending
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setUserInput(e.target.value)
+  }
+
+  const clearConversation = () => {
+    setConversationHistory([])
+    setAiResponse("Hello! I'm your AI coffee companion. Type a message below to start our conversation.")
+  }
+
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      const scrollHeight = textareaRef.current.scrollHeight
+      const lineHeight = 20 // reduced line height for mobile
+      const maxHeight = lineHeight * 5 // reduced to 5 lines max for mobile
+      textareaRef.current.style.height = `${Math.min(scrollHeight, maxHeight)}px`
+    }
+  }, [userInput])
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <div className="h-full w-full flex flex-col items-center justify-center">
+      {/* New Chat Button */}
+      {conversationHistory.length > 0 && (
+        <div className="absolute top-4 right-4">
+          <Button
+            onClick={clearConversation}
+            variant="outline"
+            className="text-sm"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            New Chat
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      )}
+      
+      {/* Chat Bubble positioned above coffee */}
+      <div className="relative flex-shrink-0">
+        {/* Speech Bubble */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-4 py-3 sm:px-6 sm:py-4 shadow-lg max-w-xs sm:max-w-sm mb-2 sm:mb-4 relative">
+          <p className="text-gray-800 text-center text-sm sm:text-base leading-tight">{aiResponse}</p>
+          {/* Speech bubble tail pointing down */}
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+            <div className="w-0 h-0 border-l-[8px] sm:border-l-[12px] border-r-[8px] sm:border-r-[12px] border-t-[8px] sm:border-t-[12px] border-l-transparent border-r-transparent border-t-white/90"></div>
+          </div>
+        </div>
+
+        {/* Coffee Emoji */}
+        <div className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl text-center">☕</div>
+      </div>
+
+      {/* Text Input Box - Responsive Width */}
+      <div className= "p-2 flex flex-col md:flex-row gap-2 w-full h-60max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl items-end flex-shrink-0">
+        <textarea
+          ref={textareaRef}
+          placeholder="Type your message..."
+          value={userInput}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyPress}
+          className="flex-1 w-full bg-white/80 backdrop-blur-sm border rounded-lg px-3 py-2 text-sm resize-none overflow-y-auto focus:outline-none  min-h-40 md:min-h-36 leading-5 sm:leading-6 scrollbar-hide"
+          rows={1}
+          style={{
+            maxHeight: "100px", // reduced max height for mobile
+            scrollbarWidth: "none", // Firefox
+            msOverflowStyle: "none", // IE/Edge
+          }}
+        />
+        <Button
+          onClick={handleSendMessage}
+          className="text-white px-3 sm:px-4 w-full md:w-9 h-9 sm:h-10 flex-shrink-0"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <Send className="w-3 h-3 sm:w-4 sm:h-4" />
+        </Button>
+      </div>
     </div>
-  );
+  )
 }
