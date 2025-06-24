@@ -17,7 +17,12 @@ export default function CoffeeChatHome() {
   )
   const [userInput, setUserInput] = useState("")
   const [conversationHistory, setConversationHistory] = useState<Message[]>([])
+  const [apiKey, setApiKey] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // const handleSaveApiKey = (key: string) => {
+  //   setApiKey(key)
+  // }
 
   const handleSendMessage = () => {
     if (userInput.trim() === "") return
@@ -31,7 +36,8 @@ export default function CoffeeChatHome() {
       },
       body: JSON.stringify({ 
         prompt: currentUserMessage,
-        history: conversationHistory 
+        history: conversationHistory,
+        apiKey: apiKey
       }),
     })
 
@@ -149,6 +155,23 @@ export default function CoffeeChatHome() {
         >
           <Send className="w-3 h-3 sm:w-4 sm:h-4" />
         </Button>
+      </div>
+
+      <div className="mt-4 flex items-center gap-2">
+        <input
+          type="text"
+          value={apiKey}
+          onChange={e => setApiKey(e.target.value)}
+          placeholder="Enter Gemini API Key"
+          className="border rounded-lg p-2 text-sm w-64 bg-white focus:outline-none"
+        />
+        {/* <Button
+          onClick={() => console.log(apiKey)}
+          variant="outline"
+          className="text-xs"
+        >
+          Print API Key
+        </Button> */}
       </div>
     </div>
   )

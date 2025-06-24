@@ -7,10 +7,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
+    const { prompt, history, apiKey } = await req.json();
+
     const ai = new GoogleGenAI({
-      apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+      //   apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY,
+      apiKey: apiKey,
     });
-    const { prompt, history } = await req.json();
 
     if (!prompt) {
       return NextResponse.json(
@@ -47,10 +49,10 @@ export async function POST(req: NextRequest) {
       ],
     };
     const model = "gemini-2.5-flash";
-    
+
     // Build conversation history
     const contents = [];
-    
+
     // Add conversation history if provided
     if (history && Array.isArray(history) && history.length > 0) {
       for (const message of history) {
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-    
+
     // Add the current user message
     contents.push({
       role: "user",
